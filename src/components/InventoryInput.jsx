@@ -228,7 +228,6 @@ return (
           ))}
         </div>
       )}
-    </div>
 
     {/* Saved fees toggle */}
 <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-700">
@@ -251,6 +250,8 @@ return (
     <span className="text-xs text-amber-400">⚠️ Could not load fee data</span>
   )}
 </div>
+
+    </div>
 
     {/* Market listing fee */}
     <div>
