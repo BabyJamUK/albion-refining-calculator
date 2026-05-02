@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
 MATERIAL_TYPES, TIERS, ALL_CITIES,
 BASE_RETURN_RATE, CITY_RETURN_RATE,
@@ -6,6 +6,7 @@ runCascade, calcUsageFee
 } from '../data/materials'
 import { fetchPrices, buildItemIds, SERVERS, applyMarketFees, TOTAL_MARKET_FEE } from '../services/marketApi'
 import OptimiserTab from './OptimiserTab'
+import { loadFees, getBestFee, formatLastUpdated } from '../services/feeService'
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,6 +83,11 @@ const [usageFee,     setUsageFee]     = useState(0)
 const [server, setServer] = useState('europe')
 const [includeMarketFee, setIncludeMarketFee] = useState(true)
 
+const [feesData, setFeesData] = useState(null)
+const [useSavedFees, setUseSavedFees] = useState(false)
+
+useEffect(() => { loadFees().then(setFeesData)}, [])
+
 // ── Input handlers ────────────────────────────────────────────────────────────
 const handleInventoryChange = (matId, tier, val) =>
 setInventory(prev => ({ ...prev, [matId]: { ...prev[matId], [tier]: val } }))
@@ -94,14 +100,29 @@ return next
 })
 }, [calculated, inventory])
 
+// Resolve usage fee per material
+const getEffectiveFee = (matId) => {
+  if (useSavedFees && feesData) {
+    const best = getBestFee(feesData, 'Europe', matId, null)
+    return best?.fee ?? 0
+  }
+  return usageFee  // fall back to manual entry
+}
+
 // ── Cascade runner ────────────────────────────────────────────────────────────
-function rerunCascades(inv, alloc) {
+function rerunCascades(inv, alloc, feeResolver = () => usageFee) {
   const rawInv = mat => Object.fromEntries(TIERS.map(t => [t, parseInt(inv[mat.id]?.[t]) || 0]))
-  const base  = MATERIAL_TYPES.map(mat => ({ ...mat, tiers: runCascade(mat, rawInv(mat), alloc[mat.id], BASE_RETURN_RATE,  usageFee, includeMarketFee) })).filter(m => m.tiers.length)
-  const bonus = MATERIAL_TYPES.map(mat => ({ ...mat, tiers: runCascade(mat, rawInv(mat), alloc[mat.id], CITY_RETURN_RATE, usageFee, includeMarketFee) })).filter(m => m.tiers.length)
+  const base  = MATERIAL_TYPES.map(mat => ({
+    ...mat,
+    tiers: runCascade(mat, rawInv(mat), alloc[mat.id], BASE_RETURN_RATE)
+  })).filter(m => m.tiers.length)
+  const bonus = MATERIAL_TYPES.map(mat => ({
+    ...mat,
+    tiers: runCascade(mat, rawInv(mat), alloc[mat.id], CITY_RETURN_RATE)
+  })).filter(m => m.tiers.length)
   setCascadeBase(base)
   setCascadeBonus(bonus)
-  return { base, bonus }
+  return { base, bonus, feeResolver }
 }
 
 // ── Main calculate + fetch ────────────────────────────────────────────────────
@@ -208,6 +229,28 @@ return (
         </div>
       )}
     </div>
+
+    {/* Saved fees toggle */}
+<div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-700">
+  <button onClick={() => setUseSavedFees(prev => !prev)}
+    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+      useSavedFees
+        ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400'
+        : 'bg-gray-800 border-gray-600 text-gray-400'
+    }`}>
+    {useSavedFees ? '✅' : '⬜'} Use saved station fees (Europe)
+  </button>
+  {useSavedFees && feesData && (
+    <span className="text-xs text-gray-400">
+      Fee data last updated: <span className="text-yellow-400 font-mono">
+        {formatLastUpdated(feesData.lastUpdated)}
+      </span>
+    </span>
+  )}
+  {useSavedFees && !feesData && (
+    <span className="text-xs text-amber-400">⚠️ Could not load fee data</span>
+  )}
+</div>
 
     {/* Market listing fee */}
     <div>
@@ -606,7 +649,8 @@ return (
   prices={prices}
   inventory={inventory}
   usageFee={usageFee}
-  includeMarketFee={includeMarketFee}
+  feesData={feesData}
+  useSavedFees={useSavedFees}
 />
       )}
     </div>

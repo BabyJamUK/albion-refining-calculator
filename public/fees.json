@@ -1,0 +1,16 @@
+{
+  "lastUpdated": "2026-05-02T12:00:00Z",
+  "maintainedRegions": ["Europe"],
+  "note": "Europe fees are maintained by the site owner. Americas and Asia fees are community submitted and may be outdated.",
+  "fees": [
+    {
+      "region": "Europe",
+      "city": "Lymhurst",
+      "material": "logs",
+      "stationName": "Example Station",
+      "fee": 440,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-02"
+    }
+  ]
+}
