@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import InventoryInput from './components/InventoryInput'
-import FeeManager from './components/FeeManager'
+import FeeManager from './components/feeManager'
 
 const queryClient = new QueryClient()
 
