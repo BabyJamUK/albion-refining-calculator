@@ -96,10 +96,10 @@ return (usageFeePerHundred / 100) * nutritionCost
 export function refineBatch(rawQty, lowerRefinedAvailable, tier, returnRate) {
 const maxBatchesByRaw   = Math.floor(rawQty / 2)
 // T2 and T3 need no lower refined ingredient
-const maxBatchesByLower = tier <= 3 ? maxBatchesByRaw : lowerRefinedAvailable
+const maxBatchesByLower = tier <= 2 ? maxBatchesByRaw : lowerRefinedAvailable
 const batches           = Math.min(maxBatchesByRaw, maxBatchesByLower)
 const refinedOutput     = Math.floor(batches * (1 + returnRate))
-const lowerRefinedUsed  = tier <= 3 ? 0 : batches
+const lowerRefinedUsed  = tier <= 2 ? 0 : batches
 return { batches, refinedOutput, lowerRefinedUsed }
 }
 
@@ -110,11 +110,11 @@ const refinedBank = {}  // refined produced at each tier
 
 const tierResults = TIERS.map(tier => {
 const raw        = rawInventory[tier] ?? 0
-const lowerAvail = tier <= 3 ? Infinity : (refinedBank[tier - 1] ?? 0)
+const lowerAvail = tier <= 2 ? Infinity : (refinedBank[tier - 1] ?? 0)
 
 const { refinedOutput, lowerRefinedUsed } = refineBatch(raw, lowerAvail, tier, returnRate)
 
-const lowerRefinedName = tier > 3 ? materialType.tierNames.refined[tier - 1] : null
+const lowerRefinedName = tier > 2 ? materialType.tierNames.refined[tier - 1] : null
 const sendUp           = tier < 8 ? Math.min(allocation?.[tier] ?? 0, refinedOutput) : 0
 const sellableRefined  = refinedOutput - sendUp
 
@@ -134,7 +134,7 @@ return {
   sellableRefined,
   rawApiId:          materialType.apiRawId(tier),
   refinedApiId:      materialType.apiRefinedId(tier),
-  lowerRefinedApiId: tier > 3 ? materialType.apiRefinedId(tier - 1) : null,
+  lowerRefinedApiId: tier > 2 ? materialType.apiRefinedId(tier - 1) : null,
 }
 
 }).filter(r => r.raw > 0 || r.refinedOutput > 0)
@@ -164,7 +164,7 @@ export function scoreCascade(materialType, rawInventory, rawSplits, prices, retu
     const fractionRef = rawSplits[tier]    ?? 0
     const rawToRefine = Math.floor(raw * fractionRef)
     const rawToSell   = raw - rawToRefine
-    const lowerAvail  = tier <= 3 ? Infinity : (refinedProduced[tier - 1] ?? 0)
+    const lowerAvail  = tier <= 2 ? Infinity : (refinedProduced[tier - 1] ?? 0)
 
     const { refinedOutput, lowerRefinedUsed } = refineBatch(rawToRefine, lowerAvail, tier, returnRate)
 
