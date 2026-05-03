@@ -145,11 +145,14 @@ return tierResults
 // ─── Optimiser ────────────────────────────────────────────────────────────────
 
 function bestPrice(prices, apiId) {
-const cityPrices = prices?.[apiId]
-if (!cityPrices) return null
-return Object.entries(cityPrices)
-.reduce((best, [city, price]) =>
-price > (best?.price ?? 0) ? { city, price } : best, null)
+  const cityData = prices?.[apiId]
+  if (!cityData) return null
+  return Object.entries(cityData)
+    .reduce((best, [city, data]) => {
+      // Handle both old format (plain number) and new format ({ price, date })
+      const price = typeof data === 'object' ? (data?.price ?? 0) : (data ?? 0)
+      return price > (best?.price ?? 0) ? { city, price } : best
+    }, null)
 }
 
 export function scoreCascade(materialType, rawInventory, rawSplits, prices, returnRate, usageFee = 0, includeMarketFee = true) {

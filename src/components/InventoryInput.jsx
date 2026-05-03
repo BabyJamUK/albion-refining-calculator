@@ -4,9 +4,11 @@ MATERIAL_TYPES, TIERS, ALL_CITIES,
 BASE_RETURN_RATE, CITY_RETURN_RATE,
 runCascade, calcUsageFee
 } from '../data/materials'
-import { fetchPrices, buildItemIds, SERVERS, applyMarketFees, TOTAL_MARKET_FEE } from '../services/marketApi'
+import { fetchPrices, buildItemIds, SERVERS, applyMarketFees, TOTAL_MARKET_FEE, getBestCityPrice, getPrice } from '../services/marketApi'
 import OptimiserTab from './OptimiserTab'
 import { loadFees, getBestFee, formatLastUpdated } from '../services/feeService'
+import PriceTrendsTab from './PriceTrendsTab'
+import PriceAgeTag from './PriceAgeTag'
 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,21 +51,24 @@ return (
 
 // ─── Profit for one tier row across all cities ────────────────────────────────
 function calcTierProfit(tierRow, prices) {
-if (!prices) return []
-const { rawApiId, refinedApiId, lowerRefinedApiId, raw, sellableRefined, lowerRefinedUsed } = tierRow
+  if (!prices) return []
+  const { rawApiId, refinedApiId, lowerRefinedApiId, raw, sellableRefined, lowerRefinedUsed } = tierRow
 
-return ALL_CITIES.map(city => {
-const rawPrice          = prices[rawApiId]?.[city]          ?? 0
-const refinedPrice      = prices[refinedApiId]?.[city]      ?? 0
-const lowerRefinedPrice = lowerRefinedApiId ? (prices[lowerRefinedApiId]?.[city] ?? 0) : 0
+  return ALL_CITIES.map(city => {
+    const rawPrice          = prices[rawApiId]?.[city]?.price          ?? 0
+    const refinedPrice      = prices[refinedApiId]?.[city]?.price      ?? 0
+    const lowerRefinedPrice = lowerRefinedApiId
+      ? (prices[lowerRefinedApiId]?.[city]?.price ?? 0)
+      : 0
+    const rawDate           = prices[rawApiId]?.[city]?.date
+    const refinedDate       = prices[refinedApiId]?.[city]?.date
 
-const rawValue     = rawPrice * raw
-const lowerCost    = lowerRefinedPrice * lowerRefinedUsed
-const refinedValue = refinedPrice * sellableRefined - lowerCost
+    const rawValue     = rawPrice * raw
+    const lowerCost    = lowerRefinedPrice * lowerRefinedUsed
+    const refinedValue = refinedPrice * sellableRefined - lowerCost
 
-return { city, rawPrice, refinedPrice, rawValue, lowerCost, refinedValue }
-
-}).filter(r => r.rawPrice > 0 || r.refinedPrice > 0)
+    return { city, rawPrice, refinedPrice, rawValue, lowerCost, refinedValue, rawDate, refinedDate }
+  }).filter(r => r.rawPrice > 0 || r.refinedPrice > 0)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -86,7 +91,42 @@ const [includeMarketFee, setIncludeMarketFee] = useState(true)
 const [feesData, setFeesData] = useState(null)
 const [useSavedFees, setUseSavedFees] = useState(false)
 
-useEffect(() => { loadFees().then(setFeesData)}, [])
+const [lastFetched, setLastFetched] = useState(null)
+const [refreshing, setRefreshing] = useState(false)
+const [countdown, setCountdown] = useState(null)
+
+// Auto-refresh every 5 minutes
+useEffect(() => {
+  if (!calculated) return
+  const interval = setInterval(() => {
+    setCountdown(prev => {
+      if (prev <= 1) {
+        handleRefreshPrices()
+        return 300
+      }
+      return prev - 1
+    })
+  }, 1000)
+  setCountdown(300)
+  return () => clearInterval(interval)
+}, [calculated])
+
+const handleRefreshPrices = async () => {
+  if (!cascadeBase || refreshing) return
+  setRefreshing(true)
+  try {
+    const activeMats = MATERIAL_TYPES.filter(m => cascadeBase.find(r => r.id === m.id))
+    const ids = buildItemIds(activeMats, TIERS)
+    setPrices(await fetchPrices(ids))
+    setLastFetched(new Date())
+  } catch {
+    setPriceError('Could not refresh prices.')
+  } finally {
+    setRefreshing(false)
+  }
+}
+
+//useEffect(() => { loadFees().then(setFeesData)}, [])
 
 // ── Input handlers ────────────────────────────────────────────────────────────
 const handleInventoryChange = (matId, tier, val) =>
@@ -127,21 +167,17 @@ function rerunCascades(inv, alloc, feeResolver = () => usageFee) {
 
 // ── Main calculate + fetch ────────────────────────────────────────────────────
 const handleCalculate = async () => {
-  console.log('1. Calculate Clicked')
-  console.log(JSON.stringify(inventory))
 const { base } = rerunCascades(inventory, allocation)
 console.log('2. cascade complete')
 setCalculated(true)
 setLoading(true)
 setPriceError(null)
 
-
 try {
   const activeMats = MATERIAL_TYPES.filter(m => base.find(r => r.id === m.id))
   const ids = buildItemIds(activeMats, TIERS)
-  console.log('Fine here:')
-  console.log('Server: ', server)
   setPrices(await fetchPrices(ids, server))  
+  setLastFetched(new Date())
 } catch(e) {
   console.log('Price Failed: ', e)
   setPriceError('Could not load market prices — Albion Data Project may be temporarily unavailable.')
@@ -318,11 +354,17 @@ return (
           {MATERIAL_TYPES.map(mat => (
             <tr key={mat.id} className="hover:bg-gray-800/50 transition-colors">
               <td className="py-3 pr-4">
-                <span className={`font-medium ${mat.color} flex items-center gap-2`}>
-                  {mat.emoji} {mat.label}
-                </span>
-                <span className="text-xs text-gray-500">Bonus: {mat.bonusCity}</span>
-              </td>
+  <div className="flex items-center gap-2 mb-1">
+    <img
+      src={`https://render.albiononline.com/v1/item/${mat.apiRawId(3)}.png`}
+      alt={mat.label}
+      className="w-8 h-8 rounded object-contain"
+      onError={e => { e.target.style.display = 'none' }}
+    />
+    <span className={`font-medium ${mat.color}`}>{mat.label}</span>
+  </div>
+  <span className="text-xs text-gray-500">Bonus: {mat.bonusCity}</span>
+</td>
               {TIERS.map(tier => (
                 <td key={tier} className="py-3 px-2">
                   <div className="flex flex-col gap-1">
@@ -362,12 +404,33 @@ return (
   {calculated && activeMats.length > 0 && (
     <div className="space-y-6">
 
+      {/* Refresh bar */}
+<div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-xl px-5 py-3">
+  <div className="flex items-center gap-3 text-xs text-gray-400">
+    <span>Prices fetched:</span>
+    <span className="text-gray-200 font-mono">
+      {lastFetched ? lastFetched.toLocaleTimeString() : '—'}
+    </span>
+    {countdown && (
+      <span className="text-gray-500">
+        (refresh in {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')})
+      </span>
+    )}
+  </div>
+  <button onClick={handleRefreshPrices} disabled={refreshing}
+    className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50">
+    <span className={refreshing ? 'animate-spin' : ''}>🔄</span>
+    {refreshing ? 'Refreshing...' : 'Refresh prices'}
+  </button>
+</div>
+
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-700">
         {[
           { id: 'cascade',  label: '⛓️ Cascade Planner' },
           { id: 'profit',   label: '💰 Profit Breakdown' },
           { id: 'optimise', label: '🧠 Optimiser' },
+          { id: 'trends', label: '📈 Price Trends' },
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
@@ -606,6 +669,7 @@ return (
                               <th className="text-right px-4 py-2">Raw/unit</th>
                               <th className="text-right px-4 py-2">Raw total</th>
                               <th className="text-right px-4 py-2">Refined/unit</th>
+                              <th className="text-right px-4 py-2 text-gray-500">Data age </th>
                               <th className="text-right px-4 py-2 text-blue-400">Refined (base)</th>
                               <th className="text-right px-4 py-2 text-green-400">Refined (bonus)</th>
                               <th className="text-right px-6 py-2 text-yellow-400">Best</th>
@@ -623,6 +687,7 @@ return (
                                   <td className="px-4 py-2.5 text-right text-gray-400 font-mono"><PriceCell price={b?.rawPrice} /></td>
                                   <td className="px-4 py-2.5 text-right text-gray-300 font-mono"><PriceCell price={b?.rawValue} /></td>
                                   <td className="px-4 py-2.5 text-right text-gray-400 font-mono"><PriceCell price={b?.refinedPrice} /></td>
+                                  <td className="px-4 py-2.5 text-right"><PriceAgeTag dataString={prices[row.rawApiId]?.[city]?.date} showIcon={false} /></td>
                                   <td className="px-4 py-2.5 text-right text-blue-400 font-mono"><PriceCell price={b?.refinedValue} /></td>
                                   <td className="px-4 py-2.5 text-right text-green-400 font-mono"><PriceCell price={bn?.refinedValue} /></td>
                                   <td className="px-6 py-2.5 text-right">
@@ -654,6 +719,11 @@ return (
   useSavedFees={useSavedFees}
 />
       )}
+
+      {activeTab === 'trends' && (
+        <PriceTrendsTab inventory={inventory} />
+      )}
+      
     </div>
   )}
 </div>
