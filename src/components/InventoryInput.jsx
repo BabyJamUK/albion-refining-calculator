@@ -168,7 +168,7 @@ const handleEnchantedChange = (matId, tier, enchant, val) => {
 const getEffectiveFee = (matId) => {
   if (useSavedFees && feesData) {
     const best = getBestFee(feesData, 'Europe', matId, null)
-    return best?.fee ?? 0
+    return best?.fee ?? null
   }
   return usageFee  // fall back to manual entry
 }
@@ -800,6 +800,8 @@ return (
   usageFee={usageFee}
   feesData={feesData}
   useSavedFees={useSavedFees}
+  feeResolver={getEffectiveFee}
+  includeMarketFee={includeMarketFee}
 />
       )}
 

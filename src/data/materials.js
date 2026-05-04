@@ -84,7 +84,6 @@ export const ITEM_VALUE = { 2: 8, 3: 16, 4: 32, 5: 64, 6: 128, 7: 256, 8: 512 }
 
 // T2 refining is free — no usage fee
 export function calcUsageFee(usageFeePerHundred, tier) {
-if (tier <= 2) return 0
 const nutritionCost = (ITEM_VALUE[tier] ?? 0) * 0.1125
 return (usageFeePerHundred / 100) * nutritionCost
 }
@@ -214,7 +213,7 @@ export function scoreCascade(materialType, rawInventory, rawSplits, prices, retu
 
     const feeMultiplier   = includeMarketFee ? (1 - 0.04) : 1
     const feePerItem      = calcUsageFee(usageFee, row.tier)
-    const totalUsageFee   = feePerItem * row.sellableRefined
+    const totalUsageFee   = feePerItem * row.refinedOutput
 
     // Market fee applies to both raw and refined sales
     row.rawSilver         = Math.floor(row.rawToSell * row.bestRawPrice * feeMultiplier)
@@ -234,36 +233,50 @@ export function scoreCascade(materialType, rawInventory, rawSplits, prices, retu
 
 // ── Optimiser: try all split combinations, pick best ─────────────────────────
 export function optimiseMaterial(materialType, rawInventory, prices, returnRate, usageFee = 0, includeMarketFee = true) {
-const activeTiers = TIERS.filter(t => (rawInventory[t] ?? 0) > 0)
-if (activeTiers.length === 0) return null
+  const activeTiers = TIERS.filter(t => (rawInventory[t] ?? 0) > 0)
+  if (activeTiers.length === 0) return null
 
-const STEPS = [0, 0.25, 0.5, 0.75, 1.0]
+  // If usageFee is null it means no station available — cannot refine at all
+  // Force all splits to 0 (sell everything raw) and score that
+  if (usageFee === null) {
+    const forcedSplits = Object.fromEntries(activeTiers.map(t => [t, 0]))
+    const { totalSilver, tierBreakdown } = scoreCascade(
+      materialType, rawInventory, forcedSplits, prices, returnRate, 0, includeMarketFee
+    )
+    return {
+      totalSilver,
+      splits: forcedSplits,
+      breakdown: tierBreakdown,
+      refiningUnavailable: true,  // flag for UI to show warning
+    }
+  }
 
-let bestScore     = -Infinity
-let bestSplits    = null
-let bestBreakdown = null
+  const STEPS = [0, 0.25, 0.5, 0.75, 1.0]
+  let bestScore     = -Infinity
+  let bestSplits    = null
+  let bestBreakdown = null
 
-function recurse(tierIdx, currentSplits) {
-if (tierIdx === activeTiers.length) {
-const { totalSilver, tierBreakdown } = scoreCascade(
-materialType, rawInventory, currentSplits, prices, returnRate, usageFee, includeMarketFee
-)
-if (totalSilver > bestScore) {
-bestScore     = totalSilver
-bestSplits    = {...currentSplits }
-bestBreakdown = tierBreakdown
-}
-return
-}
-const tier = activeTiers[tierIdx]
-for (const step of STEPS) {
-currentSplits[tier] = step
-recurse(tierIdx + 1, currentSplits)
-}
-}
+  function recurse(tierIdx, currentSplits) {
+    if (tierIdx === activeTiers.length) {
+      const { totalSilver, tierBreakdown } = scoreCascade(
+        materialType, rawInventory, currentSplits, prices, returnRate, usageFee, includeMarketFee
+      )
+      if (totalSilver > bestScore) {
+        bestScore     = totalSilver
+        bestSplits    = { ...currentSplits }
+        bestBreakdown = tierBreakdown
+      }
+      return
+    }
+    const tier = activeTiers[tierIdx]
+    for (const step of STEPS) {
+      currentSplits[tier] = step
+      recurse(tierIdx + 1, currentSplits)
+    }
+  }
 
-recurse(0, {})
-return { totalSilver: bestScore, splits: bestSplits, breakdown: bestBreakdown }
+  recurse(0, {})
+  return { totalSilver: bestScore, splits: bestSplits, breakdown: bestBreakdown, refiningUnavailable: false }
 }
 
 // ─── Enchantments ─────────────────────────────────────────────────────────────

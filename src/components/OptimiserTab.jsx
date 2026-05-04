@@ -62,7 +62,7 @@ function WinnerBadge({ baseTotal, bonusTotal }) {
   return <span className="text-xs text-gray-400">Equal returns</span>
 }
 
-export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee = 0, includeMarketFee = true }) {
+export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee = 0, feeResolver, includeMarketFee = true }) {
 
   // ✅ Fixed: properly loops over materials and returns results array
   const optimised = useMemo(() => {
@@ -75,13 +75,14 @@ export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee 
       const hasAny = TIERS.some(t => rawInv[t] > 0)
       if (!hasAny) return null
 
-       const base  = optimiseMaterial(mat, rawInv, prices, BASE_RETURN_RATE,  usageFee, includeMarketFee)
-    const bonus = optimiseMaterial(mat, rawInv, prices, CITY_RETURN_RATE, usageFee, includeMarketFee)
+       const effectiveFee = feeResolver ? feeResolver(mat.id) : usageFee
+       const base  = optimiseMaterial(mat, rawInv, prices, BASE_RETURN_RATE, effectiveFee, includeMarketFee)
+       const bonus = optimiseMaterial(mat, rawInv, prices, CITY_RETURN_RATE, effectiveFee, includeMarketFee)
 
       return { mat, base, bonus, rawInv }
     }).filter(Boolean)
 
-  }, [prices, cascadeBase, inventory, usageFee, includeMarketFee])
+  }, [prices, cascadeBase, inventory, usageFee, feeResolver, includeMarketFee])
 
   if (!prices) {
     return (
@@ -118,23 +119,34 @@ export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee 
       </div>
 
       {optimised.map(({ mat, base, bonus }) => {
-        if (!base && !bonus) return null
-        const baseTotal  = base?.totalSilver  ?? 0
-        const bonusTotal = bonus?.totalSilver ?? 0
-        const winnerRate = bonusTotal >= baseTotal ? 'bonus' : 'base'
+  if (!base && !bonus) return null
+  const baseTotal  = base?.totalSilver  ?? 0
+  const bonusTotal = bonus?.totalSilver ?? 0
+  const winnerRate = bonusTotal >= baseTotal ? 'bonus' : 'base'
+  const refiningUnavailable = base?.refiningUnavailable || bonus?.refiningUnavailable
 
-        return (
-          <div key={mat.id} className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+  return (
+    <div key={mat.id} className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-700 bg-gray-800/60">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className={`font-bold text-base ${mat.color} flex items-center gap-2`}>
+            {mat.emoji} {mat.label}
+          </h3>
+          <WinnerBadge baseTotal={baseTotal} bonusTotal={bonusTotal} />
+        </div>
+      </div>
 
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-700 bg-gray-800/60">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h3 className={`font-bold text-base ${mat.color} flex items-center gap-2`}>
-                  {mat.emoji} {mat.label}
-                </h3>
-                <WinnerBadge baseTotal={baseTotal} bonusTotal={bonusTotal} />
-              </div>
-            </div>
+      {/* ← Add this block right after the header */}
+      {refiningUnavailable && (
+        <div className="px-6 py-3 bg-amber-900/20 border-b border-amber-700/30 flex items-center gap-2 text-xs text-amber-400">
+          ⚠️ No refining station fee found for <strong>{mat.label}</strong> in your saved fee data.
+          Refining has been excluded — showing sell-raw values only.
+          <a href="#" onClick={() => {/* navigate to fees tab */}}
+            className="underline ml-1 hover:text-amber-300">
+            Add a fee →
+          </a>
+        </div>
+      )}
 
             {/* Summary cards */}
             <div className="p-6 border-b border-gray-700">
@@ -142,27 +154,34 @@ export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {base && (
-                  <div className={`rounded-xl border p-4 ${winnerRate === 'base'
-                    ? 'border-blue-500/50 bg-blue-900/20'
-                    : 'border-gray-700 bg-gray-800/40'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-blue-400 font-bold text-sm">Base Rate (15.2%)</span>
-                      {winnerRate === 'base' && <Tag color="blue">⭐ Best option</Tag>}
-                    </div>
-                    <div className="text-2xl font-bold text-blue-300 font-mono mb-3">
-                      {silver(base.totalSilver)}
-                    </div>
-                    <div className="space-y-2">
-                      {base.breakdown.filter(r => r.raw > 0).map(row => (
-                        <div key={row.tier} className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 w-6">T{row.tier}</span>
-                          <SplitBar fraction={row.fractionRef} color="blue" />
-                          <ActionBadge fraction={row.fractionRef} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+  <div className={`rounded-xl border p-4 ${winnerRate === 'base'
+    ? 'border-blue-500/50 bg-blue-900/20'
+    : 'border-gray-700 bg-gray-800/40'}`}>
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-blue-400 font-bold text-sm">Base Rate (15.2%)</span>
+      {winnerRate === 'base' && !refiningUnavailable && <Tag color="blue">⭐ Best option</Tag>}
+      {refiningUnavailable && <Tag color="amber">⚠️ No station</Tag>}
+    </div>
+    <div className="text-2xl font-bold text-blue-300 font-mono mb-3">
+      {silver(base.totalSilver)}
+    </div>
+    {refiningUnavailable ? (
+      <p className="text-xs text-amber-400">
+        No station fee data — add a fee in Station Fees tab to enable refining calculations.
+      </p>
+    ) : (
+      <div className="space-y-2">
+        {base.breakdown.filter(r => r.raw > 0).map(row => (
+          <div key={row.tier} className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 w-6">T{row.tier}</span>
+            <SplitBar fraction={row.fractionRef} color="blue" />
+            <ActionBadge fraction={row.fractionRef} />
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
                 {bonus && (
                   <div className={`rounded-xl border p-4 ${winnerRate === 'bonus'
@@ -278,7 +297,7 @@ export default function OptimiserTab({ cascadeBase, prices, inventory, usageFee 
 
                               {row.usageFeeCost > 0 && (
                                 <div className="flex justify-between text-red-400">
-                                  <span>Usage fee ({row.feePerItem?.toFixed(2)}/item × {fmt(row.sellableRefined)})</span>
+                                  <span>Usage fee ({row.feePerItem?.toFixed(2)}/item × {fmt(row.refinedOutput)} refined)</span>
                                   <span className="font-mono">− {silver(row.usageFeeCost)}</span>
                                 </div>
                               )}
