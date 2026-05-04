@@ -265,3 +265,43 @@ recurse(tierIdx + 1, currentSplits)
 recurse(0, {})
 return { totalSilver: bestScore, splits: bestSplits, breakdown: bestBreakdown }
 }
+
+// ─── Enchantments ─────────────────────────────────────────────────────────────
+// Only T4+ can be enchanted, stone cannot be enchanted at all
+export const ENCHANTMENTS = [1, 2, 3]  // .1 = uncommon, .2 = rare, .3 = exceptional
+export const ENCHANTED_TIERS = [4, 5, 6, 7, 8]  // T4+ only
+
+// Materials that CAN be enchanted (stone excluded)
+export const ENCHANTABLE_MATERIALS = ['logs', 'ore', 'hide', 'fibre']
+
+// Enchanted tier names — same base name with rarity suffix
+export const ENCHANTMENT_LABEL = { 1: 'Uncommon', 2: 'Rare', 3: 'Exceptional' }
+export const ENCHANTMENT_COLOR = {
+  1: 'text-yellow-300',   // uncommon — yellow
+  2: 'text-blue-400',     // rare — blue
+  3: 'text-purple-400',   // exceptional — purple
+}
+export const ENCHANTMENT_SUFFIX = { 1: '.1', 2: '.2', 3: '.3' }
+
+// API ID for enchanted items — e.g. T4_WOOD@1, T4_PLANKS@2
+// Usage: apiEnchantedRawId('logs', 4, 1) → 'T4_WOOD@1'
+export function apiEnchantedRawId(materialType, tier, enchant) {
+  return `${materialType.apiRawId(tier)}@${enchant}`
+}
+export function apiEnchantedRefinedId(materialType, tier, enchant) {
+  return `${materialType.apiRefinedId(tier)}@${enchant}`
+}
+
+// Lower refined ingredient for enchanted refining:
+// T4.X uses NORMAL T3 refined (no enchant suffix)
+// T5.X+ uses same enchantment level of tier below
+export function getEnchantedLowerRefinedId(materialType, tier, enchant) {
+  if (tier <= 4) return materialType.apiRefinedId(3)        // T4.X → normal T3 refined
+  return apiEnchantedRefinedId(materialType, tier - 1, enchant)  // T5+ → same enchant tier below
+}
+
+export function getEnchantedLowerRefinedName(materialType, tier, enchant) {
+  if (tier <= 4) return materialType.tierNames.refined[3]   // normal T3 refined name
+  const baseName = materialType.tierNames.refined[tier - 1]
+  return `${ENCHANTMENT_LABEL[enchant]} ${baseName}`
+}

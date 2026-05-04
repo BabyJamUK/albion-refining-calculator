@@ -12,7 +12,7 @@ asia:     { label: '🌏 Asia',     url: 'https://east.albion-online-data.com'  
 
 const CITIES = [
 'Lymhurst', 'Thetford', 'Martlock', 'Bridgewatch',
-'Fort%20Sterling', 'Caerleon', 'Brecilien'
+'Fort%20Sterling', 'Caerleon', 'Brecilien', 'Black%20Market'
 ]
 
 // Albion market fees deducted from sale proceeds:
@@ -58,8 +58,6 @@ return chunks
 const baseUrl   = SERVERS[server]?.url ?? SERVERS.europe.url
 const locations = CITIES.join(',')
 const chunks    = chunkArray([...new Set(itemIds)], CHUNK_SIZE)
-
-console.log(`Fetching ${itemIds.length} items in ${chunks.length} chunk(s) from ${SERVERS[server]?.label}`)
 
 const responses = await Promise.all(
 chunks.map(async chunk => {

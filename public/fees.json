@@ -5,12 +5,175 @@
   "fees": [
     {
       "region": "Europe",
+      "city": "Fort Sterling",
+      "material": "logs",
+      "stationName": "mackclan5",
+      "fee": 390,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Fort Sterling",
+      "material": "ore",
+      "stationName": "repetitor",
+      "fee": 970,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    }
+    ,
+    {
+      "region": "Europe",
+      "city": "Fort Sterling",
+      "material": "hide",
+      "stationName": "nNic",
+      "fee": 1000,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Bridgewatch",
+      "material": "logs",
+      "stationName": "Borlan",
+      "fee": 960,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Bridgewatch",
+      "material": "hide",
+      "stationName": "repetitor",
+      "fee": 970,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
       "city": "Lymhurst",
       "material": "logs",
-      "stationName": "Example Station",
-      "fee": 440,
+      "stationName": "ZeroTimes",
+      "fee": 970,
       "submittedBy": "BabyJamUK",
-      "lastVerified": "2026-05-02"
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Bridgewatch",
+      "material": "fibre",
+      "stationName": "Zhyl1kk",
+      "fee": 459,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Lymhurst",
+      "material": "hide",
+      "stationName": "repetitor",
+      "fee": 980,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Lymhurst",
+      "material": "fibre",
+      "stationName": "HawkTuahGirl",
+      "fee": 950,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Martlock",
+      "material": "logs",
+      "stationName": "repetitor",
+      "fee": 990,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Martlock",
+      "material": "hide",
+      "stationName": "Simonz",
+      "fee": 340,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Martlock",
+      "material": "stone",
+      "stationName": "repetitor",
+      "fee": 990,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Thetford",
+      "material": "logs",
+      "stationName": "repetitor",
+      "fee": 745,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Thetford",
+      "material": "ore",
+      "stationName": "Quasaron",
+      "fee": 400,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Thetford",
+      "material": "hide",
+      "stationName": "A1ckis",
+      "fee": 980,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Thetford",
+      "material": "fibre",
+      "stationName": "A1ckis",
+      "fee": 980,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Caerleon",
+      "material": "logs",
+      "stationName": "Leafwalker",
+      "fee": 699,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Caerleon",
+      "material": "ore",
+      "stationName": "Koksa",
+      "fee": 598,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
+    },
+    {
+      "region": "Europe",
+      "city": "Caerleon",
+      "material": "stone",
+      "stationName": "DemonsInTheSky",
+      "fee": 880,
+      "submittedBy": "BabyJamUK",
+      "lastVerified": "2026-05-03"
     }
   ]
 }

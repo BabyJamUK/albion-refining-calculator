@@ -1,9 +1,9 @@
+import { MATERIAL_TYPES, TIERS, ALL_CITIES, BASE_RETURN_RATE, CITY_RETURN_RATE,
+  runCascade, calcUsageFee, ENCHANTED_TIERS, ENCHANTMENTS, ENCHANTABLE_MATERIALS,
+  apiEnchantedRawId, apiEnchantedRefinedId, getEnchantedLowerRefinedId } from '../data/materials'
+import EnchantedInventory from './EnchantmentInventory'
+import BlackMarketTab from './BlackMarketTab'
 import { useState, useCallback, useEffect } from 'react'
-import {
-MATERIAL_TYPES, TIERS, ALL_CITIES,
-BASE_RETURN_RATE, CITY_RETURN_RATE,
-runCascade, calcUsageFee
-} from '../data/materials'
 import { fetchPrices, buildItemIds, SERVERS, applyMarketFees, TOTAL_MARKET_FEE, getBestCityPrice, getPrice } from '../services/marketApi'
 import OptimiserTab from './OptimiserTab'
 import { loadFees, getBestFee, formatLastUpdated } from '../services/feeService'
@@ -95,6 +95,18 @@ const [lastFetched, setLastFetched] = useState(null)
 const [refreshing, setRefreshing] = useState(false)
 const [countdown, setCountdown] = useState(null)
 
+const [enchantedView,      setEnchantedView]      = useState(false)
+const [enchantedInventory, setEnchantedInventory] = useState(
+  Object.fromEntries(MATERIAL_TYPES.map(m => [
+    m.id,
+    Object.fromEntries(ENCHANTED_TIERS.map(t => [
+      t,
+      Object.fromEntries(ENCHANTMENTS.map(e => [e, '']))
+    ]))
+  ]))
+)
+const [enchantedPrices, setEnchantedPrices] = useState(null)
+
 // Auto-refresh every 5 minutes
 useEffect(() => {
   if (!calculated) return
@@ -102,14 +114,16 @@ useEffect(() => {
     setCountdown(prev => {
       if (prev <= 1) {
         handleRefreshPrices()
-        return 300
+        return 600
       }
       return prev - 1
     })
   }, 1000)
-  setCountdown(300)
+  setCountdown(600)
   return () => clearInterval(interval)
 }, [calculated])
+
+useEffect(() => { loadFees().then(setFeesData)}, [])
 
 const handleRefreshPrices = async () => {
   if (!cascadeBase || refreshing) return
@@ -140,6 +154,16 @@ return next
 })
 }, [calculated, inventory])
 
+const handleEnchantedChange = (matId, tier, enchant, val) => {
+  setEnchantedInventory(prev => ({
+    ...prev,
+    [matId]: {
+      ...prev[matId],
+      [tier]: { ...prev[matId][tier], [enchant]: val }
+    }
+  }))
+}
+
 // Resolve usage fee per material
 const getEffectiveFee = (matId) => {
   if (useSavedFees && feesData) {
@@ -168,7 +192,6 @@ function rerunCascades(inv, alloc, feeResolver = () => usageFee) {
 // ── Main calculate + fetch ────────────────────────────────────────────────────
 const handleCalculate = async () => {
 const { base } = rerunCascades(inventory, allocation)
-console.log('2. cascade complete')
 setCalculated(true)
 setLoading(true)
 setPriceError(null)
@@ -178,6 +201,32 @@ try {
   const ids = buildItemIds(activeMats, TIERS)
   setPrices(await fetchPrices(ids, server))  
   setLastFetched(new Date())
+
+  // Fetch enchanted prices if any enchanted inventory entered
+const hasEnchanted = MATERIAL_TYPES
+  .filter(m => ENCHANTABLE_MATERIALS.includes(m.id))
+  .some(mat => ENCHANTED_TIERS.some(t =>
+    ENCHANTMENTS.some(e => parseInt(enchantedInventory[mat.id]?.[t]?.[e]) > 0)
+  ))
+
+if (hasEnchanted) {
+  const enchantedIds = []
+  for (const mat of MATERIAL_TYPES.filter(m => ENCHANTABLE_MATERIALS.includes(m.id))) {
+    for (const tier of ENCHANTED_TIERS) {
+      for (const enchant of ENCHANTMENTS) {
+        if (parseInt(enchantedInventory[mat.id]?.[tier]?.[enchant]) > 0) {
+          enchantedIds.push(apiEnchantedRawId(mat, tier, enchant))
+          enchantedIds.push(apiEnchantedRefinedId(mat, tier, enchant))
+          enchantedIds.push(getEnchantedLowerRefinedId(mat, tier, enchant))
+        }
+      }
+    }
+  }
+  // Add Black Market to cities for enchanted fetch
+  const bmIds = [...new Set(enchantedIds)]
+  setEnchantedPrices(await fetchPrices(bmIds, 'europe'))
+}
+
 } catch(e) {
   console.log('Price Failed: ', e)
   setPriceError('Could not load market prices — Albion Data Project may be temporarily unavailable.')
@@ -333,6 +382,39 @@ return (
   </div>
 </div>
 
+{/* Enchantment toggle */}
+<div className="flex items-center gap-3 mb-4">
+  <span className="text-sm text-gray-400">View:</span>
+  <button onClick={() => setEnchantedView(false)}
+    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+      !enchantedView
+        ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400'
+        : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+    }`}>
+    ⚒️ Normal T2–T8
+  </button>
+  <button onClick={() => setEnchantedView(true)}
+    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+      enchantedView
+        ? 'bg-purple-500/20 border-purple-500/40 text-purple-400'
+        : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+    }`}>
+    ✨ Enchanted T4.1–T8.3
+  </button>
+</div>
+
+{/* Show either normal or enchanted grid */}
+{!enchantedView ? (
+  <div className="overflow-x-auto">
+    {/* ... existing table ... */}
+  </div>
+) : (
+  <EnchantedInventory
+    enchantedInventory={enchantedInventory}
+    onChange={handleEnchantedChange}
+  />
+)}
+
   {/* ── Inventory Input ──────────────────────────────────────────────────── */}
   <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
     <h2 className="text-lg font-semibold text-yellow-400 mb-1">📦 Raw Material Inventory</h2>
@@ -429,8 +511,9 @@ return (
         {[
           { id: 'cascade',  label: '⛓️ Cascade Planner' },
           { id: 'profit',   label: '💰 Profit Breakdown' },
+          { id: 'blackmarket', label: '🏴 Black Market' },
           { id: 'optimise', label: '🧠 Optimiser' },
-          { id: 'trends', label: '📈 Price Trends' },
+          { id: 'trends', label: '📈 Price Trends' },          
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
@@ -723,6 +806,16 @@ return (
       {activeTab === 'trends' && (
         <PriceTrendsTab inventory={inventory} />
       )}
+
+      {activeTab === 'blackmarket' && (
+  <BlackMarketTab
+    cascadeBase={cascadeBase}
+    prices={prices}
+    enchantedPrices={enchantedPrices}
+    inventory={inventory}
+    enchantedInventory={enchantedInventory}
+  />
+)}
       
     </div>
   )}
