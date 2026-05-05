@@ -12,7 +12,7 @@ asia:     { label: '🌏 Asia',     url: 'https://east.albion-online-data.com'  
 
 const CITIES = [
 'Lymhurst', 'Thetford', 'Martlock', 'Bridgewatch',
-'Fort%20Sterling', 'Caerleon', 'Brecilien', 'Black%20Market'
+'Fort%20Sterling', 'Caerleon', 'Brecilien'
 ]
 
 // Albion market fees deducted from sale proceeds:
@@ -225,4 +225,38 @@ return Object.entries(cityData).reduce((best, [city, entry]) => {
 const price = typeof entry === 'object' ? (entry.price ?? 0) : entry
 return price > (best?.price ?? 0) ? { city, price, date: entry?.date } : best
 }, null)
+}
+
+// ── Black Market prices ───────────────────────────────────────────────────────
+// Black Market uses BUY orders not sell orders
+// We need buy_price_max — the highest buy order currently placed
+
+export async function fetchBlackMarketPrices(itemIds) {
+  if (!itemIds?.length) return {}
+
+  const chunks = chunkArray([...new Set(itemIds)], CHUNK_SIZE)
+
+  const responses = await Promise.all(
+    chunks.map(async chunk => {
+      // Black Market is in Caerleon — location is 'Black Market'
+      const url = `https://europe.albion-online-data.com/api/v2/stats/prices/${chunk.join(',')}?locations=Black%20Market&qualities=1`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Black Market API ${res.status}`)
+      return res.json()
+    })
+  )
+
+  const result = {}
+  for (const data of responses) {
+    for (const entry of data) {
+      const id    = entry.item_id
+      const price = entry.buy_price_max       // ← key difference
+      const date  = entry.buy_price_max_date  // ← and its date
+
+      if (price > 0) {
+        result[id] = { price, date }
+      }
+    }
+  }
+  return result
 }
