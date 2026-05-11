@@ -4,11 +4,13 @@ import InventoryInput from './components/InventoryInput'
 import FeeManager from './components/feeManager'
 import { fetchGoldPrice, formatGoldAge } from './services/goldService'
 import PriceChecker from './components/PriceChecker'
+import MarketFlipper from './components/MarketFlipper'
 
 const queryClient = new QueryClient()
 
 const TABS = [
   { id: 'calculator', label: '⚗️ Calculator' },
+  { id: 'flipper', label: '  Market Flipper'},
   { id: 'prices', label: '  Price Checker'},
   { id: 'fees',       label: '🏭 Station Fees' },
 ]
@@ -16,6 +18,8 @@ const TABS = [
 function App() {
   const [activePage, setActivePage] = useState('calculator')
   const [goldData,   setGoldData]   = useState(null)
+
+  const [allowRedBlack, setAllowRedBlack] = useState(false)
 
   // Fetch gold price on load and every 10 minutes
   useEffect(() => {
@@ -72,6 +76,7 @@ function App() {
 
         <main className="max-w-7xl mx-auto px-4 py-8">
           {activePage === 'calculator' && <InventoryInput />}
+          {activePage === 'flipper' && ( <MarketFlipper allowRedBlack={allowRedBlack} onToggleZones={() => setAllowRedBlack(prev => !prev)} /> )}
           {activePage === 'prices' && <PriceChecker server="europe" />}
           {activePage === 'fees'       && <FeeManager />}
         </main>
