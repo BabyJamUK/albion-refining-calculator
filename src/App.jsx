@@ -3,11 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import InventoryInput from './components/InventoryInput'
 import FeeManager from './components/feeManager'
 import { fetchGoldPrice, formatGoldAge } from './services/goldService'
+import PriceChecker from './components/PriceChecker'
 
 const queryClient = new QueryClient()
 
 const TABS = [
   { id: 'calculator', label: '⚗️ Calculator' },
+  { id: 'prices', label: '  Price Checker'},
   { id: 'fees',       label: '🏭 Station Fees' },
 ]
 
@@ -70,6 +72,7 @@ function App() {
 
         <main className="max-w-7xl mx-auto px-4 py-8">
           {activePage === 'calculator' && <InventoryInput />}
+          {activePage === 'prices' && <PriceChecker server="europe" />}
           {activePage === 'fees'       && <FeeManager />}
         </main>
 
